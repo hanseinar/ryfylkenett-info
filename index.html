@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Informasjon om Ryfylkenett, et frivillig Meshtastic-radionettverk i Ryfylke." />
+  <title>Ryfylkenett</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f5f3ee;
+      --card:      #ffffff;
+      --ink:       #1a1a18;
+      --muted:     #6b6b60;
+      --accent:    #2e5f3e;
+      --accent-lt: #e8f0eb;
+      --border:    #dddbd4;
+      --radius:    12px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--accent);
+      color: #fff;
+      padding: 2rem 1.5rem 1.75rem;
+      position: relative;
+      overflow: hidden;
+    }
+    header::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='30' r='28' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1'/%3E%3Ccircle cx='30' cy='30' r='18' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1'/%3E%3Ccircle cx='30' cy='30' r='8' fill='none' stroke='rgba(255,255,255,0.08)' stroke-width='1'/%3E%3C/svg%3E") repeat;
+      pointer-events: none;
+    }
+    .header-inner { position: relative; z-index: 1; max-width: 480px; }
+    .badge {
+      display: inline-block;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.9);
+      border-radius: 20px;
+      padding: 0.25rem 0.75rem;
+      margin-bottom: 0.85rem;
+    }
+    header h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2rem;
+      line-height: 1.15;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    header p {
+      font-size: 0.95rem;
+      line-height: 1.55;
+      color: rgba(255,255,255,0.82);
+    }
+
+    /* ── Main ── */
+    main {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.25rem 1.35rem;
+      animation: fadeUp 0.4s ease both;
+    }
+    .card:nth-child(1) { animation-delay: 0.05s; }
+    .card:nth-child(2) { animation-delay: 0.12s; }
+    .card:nth-child(3) { animation-delay: 0.19s; }
+    .card:nth-child(4) { animation-delay: 0.26s; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .card-icon {
+      width: 2.2rem;
+      height: 2.2rem;
+      border-radius: 8px;
+      background: var(--accent-lt);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.85rem;
+    }
+    .card-icon svg {
+      width: 1.1rem;
+      height: 1.1rem;
+      stroke: var(--accent);
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .card h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.1rem;
+      margin-bottom: 0.55rem;
+      color: var(--ink);
+    }
+    .card p {
+      font-size: 0.9rem;
+      line-height: 1.65;
+      color: #3a3a35;
+    }
+
+    /* ── Contact card ── */
+    .card.contact {
+      border-color: var(--accent);
+      background: var(--accent-lt);
+    }
+    .card.contact h2 { color: var(--accent); }
+    .card.contact p  { color: #2a4a32; }
+
+    .contact-links {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-top: 0.85rem;
+    }
+    .contact-links a {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .contact-links a svg {
+      width: 1rem;
+      height: 1rem;
+      stroke: var(--accent);
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      flex-shrink: 0;
+    }
+
+    /* ── Footer ── */
+    footer {
+      max-width: 480px;
+      margin: 1.5rem auto 0;
+      padding: 0 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    footer p {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    footer a {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="badge">Ryfylkenett</div>
+    <h1>Dette er en Meshtastic-node</h1>
+    <p>Du har funnet en del av Ryfylkenett, et frivillig, lokalt radionettverk for kommunikasjon uten internett eller mobilnett.</p>
+  </div>
+</header>
+
+<main>
+
+  <div class="card">
+    <div class="card-icon">
+      <!-- radio waves icon -->
+      <svg viewBox="0 0 24 24"><path d="M5 12.5a7 7 0 0 1 14 0"/><path d="M8.5 15.5a3.5 3.5 0 0 1 7 0"/><circle cx="12" cy="19" r="1" fill="currentColor" stroke="none"/></svg>
+    </div>
+    <h2>Hva er dette?</h2>
+    <p>
+      Boksen inneholder en liten radiosender som kommuniserer med andre noder i området.
+      Sammen danner de et nettverk der folk kan sende tekstmeldinger og posisjon, helt uten
+      SIM-kort, internett eller virkende telefonsystem.
+    </p>
+    <p style="margin-top:0.65rem;">
+      Ved en krise hvor infrastrukturen i området blir ødelagt eller slutter å virke, vil disse
+      boksene sammen kunne fungere som et lokalt kommunikasjonsnett for meldinger og posisjon,
+      uavhengig av om mobilnettet virker.
+    </p>
+    <p style="margin-top:0.65rem;">
+      Sendeeffekten er omtrent som en WiFi-ruter hjemme, altså veldig lav.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="card-icon">
+      <!-- users icon -->
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    </div>
+    <h2>Hvorfor finnes dette?</h2>
+    <p>
+      Ryfylkenett er bygget og driftet av frivillige radioamatører tilknyttet Hjelmeland Radiolag (LA5L).
+      Nettverket er åpent for alle, og er særlig nyttig når ordinær kommunikasjon svikter, ved strømbrudd,
+      naturkatastrofer eller andre hendelser der mobilnettet er nede.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="card-icon">
+      <!-- home/land icon -->
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </div>
+    <h2>Er du grunneier?</h2>
+    <p>
+      Vi håper det er ok for deg at denne boksen henger her.
+      Om ikke, ta gjerne kontakt med oss, så finner vi en løsning.
+    </p>
+  </div>
+
+  <div class="card contact">
+    <div class="card-icon" style="background:rgba(46,95,62,0.12);">
+      <!-- message icon -->
+      <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    </div>
+    <h2>Spørsmål om utstyret?</h2>
+    <p>Ta kontakt med oss, så svarer vi så fort vi kan.</p>
+    <div class="contact-links">
+      <a href="tel:+4793822938">
+        <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.39 2 2 0 0 1 3.6 1.22h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.86a16 16 0 0 0 6 6l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7a2 2 0 0 1 1.72 2.02z"/></svg>
+        938 22 938
+      </a>
+      <a href="mailto:la5l.ryfylke@gmail.com">
+        <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        la5l.ryfylke@gmail.com
+      </a>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  <p>Hjelmeland Radiolag · LA5L</p>
+  <a href="https://la5l.no" target="_blank" rel="noopener">la5l.no</a>
+</footer>
+
+</body>
+</html>
