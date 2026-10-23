@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Oppdater SenseCAP T1000-E til Ryfylkenett-firmware med støtte for 31,25 kHz båndbredde." />
+  <title>Oppdater T1000-E</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #f5f3ee;
+      --card:      #ffffff;
+      --ink:       #1a1a18;
+      --muted:     #6b6b60;
+      --accent:    #2e5f3e;
+      --accent-lt: #e8f0eb;
+      --border:    #dddbd4;
+      --warn:      #8a5a00;
+      --warn-lt:   #fbf1dc;
+      --err:       #9b2c2c;
+      --radius:    12px;
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+      padding: 0 0 3rem;
+    }
+
+    header {
+      background: var(--accent);
+      color: #fff;
+      padding: 2rem 1.5rem 1.75rem;
+      position: relative;
+      overflow: hidden;
+    }
+    header::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='30' r='28' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1'/%3E%3Ccircle cx='30' cy='30' r='18' fill='none' stroke='rgba(255,255,255,0.06)' stroke-width='1'/%3E%3Ccircle cx='30' cy='30' r='8' fill='none' stroke='rgba(255,255,255,0.08)' stroke-width='1'/%3E%3C/svg%3E") repeat;
+      pointer-events: none;
+    }
+    .header-inner { position: relative; z-index: 1; max-width: 560px; margin: 0 auto; }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 500;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: rgba(255,255,255,0.15);
+      color: rgba(255,255,255,0.9);
+      border-radius: 20px;
+      padding: 0.25rem 0.75rem;
+      margin-bottom: 0.85rem;
+    }
+    header h1 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 2rem;
+      line-height: 1.15;
+      margin-bottom: 0.6rem;
+    }
+    header p {
+      font-size: 0.95rem;
+      line-height: 1.55;
+      color: rgba(255,255,255,0.85);
+    }
+
+    main {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.25rem 1.35rem;
+    }
+    .card h2 {
+      font-family: 'DM Serif Display', serif;
+      font-size: 1.15rem;
+      margin-bottom: 0.55rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    .step {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.7rem;
+      height: 1.7rem;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+    .card p, .card li {
+      font-size: 0.92rem;
+      line-height: 1.65;
+      color: #3a3a35;
+    }
+    .card p + p { margin-top: 0.6rem; }
+    .card ul { margin: 0.4rem 0 0 1.2rem; }
+    .card li + li { margin-top: 0.25rem; }
+    code {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.85em;
+      background: #f0eee8;
+      border-radius: 4px;
+      padding: 0.05rem 0.3rem;
+      word-break: break-all;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.9rem;
+      padding: 0.7rem 1.1rem;
+      border-radius: 8px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 500;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    .btn:hover { filter: brightness(1.1); }
+    .btn:disabled { background: #9aa79e; cursor: not-allowed; }
+    .btn svg { width: 1.05rem; height: 1.05rem; stroke: #fff; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+    .linkbtn {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      cursor: pointer;
+      margin-top: 0.6rem;
+      display: block;
+    }
+
+    .status {
+      margin-top: 0.8rem;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      border-radius: 8px;
+      padding: 0.6rem 0.8rem;
+      display: none;
+    }
+    .status.ok   { display: block; background: var(--accent-lt); color: #2a4a32; }
+    .status.err  { display: block; background: #fbe9e9; color: var(--err); }
+    .status.info { display: block; background: #f0eee8; color: #3a3a35; }
+
+    .card.warn { border-color: #e2c27a; background: var(--warn-lt); }
+    .card.warn h2, .card.warn p, .card.warn li { color: var(--warn); }
+    .card.contact { border-color: var(--accent); background: var(--accent-lt); }
+    .card.contact h2 { color: var(--accent); }
+    .card.contact p  { color: #2a4a32; }
+    .card.contact a  { color: var(--accent); font-weight: 500; }
+
+    .fw-meta { margin-top: 0.5rem; font-size: 0.82rem; color: var(--muted); }
+
+    footer {
+      max-width: 560px;
+      margin: 1.5rem auto 0;
+      padding: 0 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    footer p, footer a { font-size: 0.78rem; color: var(--muted); }
+    footer a { text-decoration: underline; text-underline-offset: 2px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="badge">Ryfylkenett · LA5L</div>
+    <h1>Oppdater din T1000-E</h1>
+    <p>Denne siden hjelper deg å legge Ryfylkenett-firmware på en SenseCAP T1000-E. Det tar omtrent fem minutter og krever en PC med Chrome eller Edge.</p>
+  </div>
+</header>
+
+<main>
+
+  <div class="card warn" id="nosupport" hidden>
+    <h2>Nettleseren støttes ikke</h2>
+    <p>Knappen i steg 3 krever Chrome eller Edge på PC eller Mac. Mobiltelefoner og Firefox/Safari kan ikke snakke med USB-porten. Du kan likevel følge resten av stegene og bruke knappen på T1000-E i stedet (se steg 3).</p>
+  </div>
+
+  <div class="card">
+    <h2>Dette trenger du</h2>
+    <ul>
+      <li>En <b>SenseCAP T1000-E</b> med Meshtastic. Siden gjelder bare denne enheten.</li>
+      <li>En <b>USB-kabel som overfører data</b> (den magnetiske kabelen som fulgte med). Ladekabler uten data virker ikke.</li>
+      <li>En PC med <b>Chrome eller Edge</b>.</li>
+      <li>Litt strøm på batteriet.</li>
+    </ul>
+    <p>Innstillinger, kanaler og nøkler beholdes. Du trenger ikke sette opp noden på nytt.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="step">1</span>Last ned firmware</h2>
+    <p>Lagre filen et sted du finner den igjen, for eksempel i Nedlastinger.</p>
+    <a class="btn" id="dl" href="#">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Last ned firmware
+    </a>
+    <p class="fw-meta">Fil: <code id="fwname"></code><br />Versjon: <code id="fwver"></code></p>
+  </div>
+
+  <div class="card">
+    <h2><span class="step">2</span>Koble til T1000-E</h2>
+    <p>Fest USB-kabelen til T1000-E og koble den til PC-en. Noden skal være slått på.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="step">3</span>Sett i oppdateringsmodus</h2>
+    <p>Trykk knappen og velg porten til T1000-E i listen som dukker opp. Etter noen sekunder skal en ny disk med navnet <b>T1000-E</b> vises i Utforsker (Windows) eller Finder (Mac).</p>
+    <button class="btn" id="dfu">
+      <svg viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>
+      Sett i oppdateringsmodus
+    </button>
+    <button class="linkbtn" id="dfuall">Finner du ikke noden i listen? Vis alle porter</button>
+    <div class="status" id="dfustatus"></div>
+    <p style="margin-top:0.9rem;"><b>Uten knappen:</b> Hold knappen på T1000-E inne mens du slår den på, og fortsett å holde i ca. 3 sekunder. Disken skal da dukke opp.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="step">4</span>Kopier filen til disken</h2>
+    <p>Dra filen fra steg 1 over på disken <b>T1000-E</b>. Noden installerer firmwaren og starter på nytt av seg selv, og disken forsvinner.</p>
+    <p>Windows kan si at disken ble fjernet eller at kopieringen ble avbrutt. Det er normalt.</p>
+  </div>
+
+  <div class="card">
+    <h2><span class="step">5</span>Sjekk versjonen</h2>
+    <p>Koble til noden i Meshtastic-appen og se på firmwareversjonen i informasjonen om noden. Den skal være:</p>
+    <p><code id="fwver2"></code></p>
+    <p>Står det noe annet, gjenta fra steg 3.</p>
+  </div>
+
+  <div class="card">
+    <h2>Om denne firmwaren</h2>
+    <p>Dette er Meshtastic 2.7.26 med én endring: radiobiblioteket RadioLib er utvidet slik at T1000-E (radiobrikken LR1110) kan bruke 31,25 kHz båndbredde. Offisiell Meshtastic godtar ikke denne innstillingen på T1000-E. Ellers er firmwaren lik den offisielle.</p>
+    <p>Firmwaren endrer ikke innstillingene på noden. Hvilken kanal nettet bruker, får du beskjed om fra LA5L.</p>
+    <p>Kildekode: <a href="https://github.com/hanseinar/firmware/tree/ryfylke/2.7.26-bw31">hanseinar/firmware, gren ryfylke/2.7.26-bw31</a> og <a href="https://github.com/hanseinar/RadioLib/tree/lr11x0-bw31">hanseinar/RadioLib, gren lr11x0-bw31</a>. Meshtastic er lisensiert under GPLv3.</p>
+  </div>
+
+  <div class="card contact">
+    <h2>Trenger du hjelp?</h2>
+    <p>Ta kontakt, så hjelper vi deg.</p>
+    <p><a href="tel:+4793822938">938 22 938</a> · <a href="mailto:la5l.ryfylke@gmail.com">la5l.ryfylke@gmail.com</a></p>
+  </div>
+
+</main>
+
+<footer>
+  <p>Hjelmeland Radiolag · LA5L</p>
+  <a href="index.html">Ryfylkenett</a>
+</footer>
+
+<script>
+  // Firmware som deles. Oppdater disse tre linjene ved ny versjon.
+  const FW_VERSION = '2.7.26.5a4db54';
+  const FW_FILE    = 'firmware-tracker-t1000-e-2.7.26.5a4db54.uf2';
+  const FW_URL     = 'https://github.com/hanseinar/firmware/releases/download/t1000e-2.7.26.5a4db54/' + FW_FILE;
+
+  // USB-leverandører for T1000-E (fra boards/tracker-t1000-e.json i Meshtastic): Adafruit og Seeed
+  const USB_FILTERS = [{ usbVendorId: 0x239A }, { usbVendorId: 0x2886 }];
+
+  document.getElementById('dl').href = FW_URL;
+  document.getElementById('fwname').textContent = FW_FILE;
+  document.getElementById('fwver').textContent = FW_VERSION;
+  document.getElementById('fwver2').textContent = FW_VERSION;
+
+  const statusEl = document.getElementById('dfustatus');
+  function setStatus(cls, text) {
+    statusEl.className = 'status ' + cls;
+    statusEl.textContent = text;
+  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  if (!('serial' in navigator)) {
+    document.getElementById('nosupport').hidden = false;
+    document.getElementById('dfu').disabled = true;
+    document.getElementById('dfuall').hidden = true;
+  }
+
+  // Bootloader-inngang: åpne porten med 1200 baud og slipp DTR.
+  // Adafruit nRF52-kjernen som Meshtastic bruker, starter da UF2-bootloaderen.
+  async function enterDfu(filters) {
+    let port;
+    try {
+      port = await navigator.serial.requestPort(filters ? { filters } : {});
+    } catch (e) {
+      if (e.name === 'NotFoundError') {
+        setStatus('info', 'Ingen port valgt. Sjekk at kabelen overfører data og at noden er på, og prøv igjen.');
+      } else {
+        setStatus('err', 'Kunne ikke velge port: ' + e.message);
+      }
+      return;
+    }
+    try {
+      setStatus('info', 'Kobler til ...');
+      await port.open({ baudRate: 1200 });
+      await port.setSignals({ dataTerminalReady: true });
+      await sleep(100);
+      await port.setSignals({ dataTerminalReady: false });
+      await sleep(200);
+    } catch (e) {
+      // Noden kan koble fra seg selv midt i dette. Det er forventet.
+    }
+    try { await port.close(); } catch (e) { /* allerede frakoblet */ }
+    setStatus('ok', 'Sendt. Vent 5–10 sekunder. Dukker disken T1000-E opp, gå videre til steg 4. Hvis ikke, bruk knappen på noden som beskrevet under.');
+  }
+
+  document.getElementById('dfu').addEventListener('click', () => enterDfu(USB_FILTERS));
+  document.getElementById('dfuall').addEventListener('click', () => enterDfu(null));
+</script>
+
+</body>
+</html>
