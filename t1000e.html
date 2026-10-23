@@ -206,7 +206,7 @@
 
   <div class="card warn" id="nosupport" hidden>
     <h2>Nettleseren støttes ikke</h2>
-    <p>Knappen i steg 3 krever Chrome eller Edge på PC eller Mac. Mobiltelefoner og Firefox/Safari kan ikke snakke med USB-porten. Du kan likevel følge resten av stegene og bruke knappen på T1000-E i stedet (se steg 3).</p>
+    <p>Knappene i steg 3 og 5 krever Chrome eller Edge på PC eller Mac. Mobiltelefoner og Firefox/Safari kan ikke snakke med USB-porten. Du kan likevel følge resten av stegene og bruke knappen på T1000-E i stedet (se steg 3).</p>
   </div>
 
   <div class="card">
@@ -260,9 +260,15 @@
 
   <div class="card">
     <h2><span class="step">5</span>Sjekk versjonen</h2>
-    <p>Koble til noden i Meshtastic-appen og se på firmwareversjonen i informasjonen om noden. Den skal være:</p>
+    <p>Vent til noden har startet på nytt (ca. 20 sekunder). La USB-kabelen stå i, trykk knappen og velg porten til T1000-E. Siden leser da versjonen direkte fra noden. Den skal være:</p>
     <p><code id="fwver2"></code></p>
-    <p>Står det noe annet, gjenta fra steg 3.</p>
+    <button class="btn" id="chk">
+      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      Sjekk versjon
+    </button>
+    <button class="linkbtn" id="chkall">Finner du ikke noden i listen? Vis alle porter</button>
+    <div class="status" id="chkstatus"></div>
+    <p style="margin-top:0.9rem;">Du kan også se versjonen i Meshtastic-appen, i informasjonen om noden. Lukk appen eller andre programmer som bruker USB-porten før du trykker knappen, ellers er porten opptatt.</p>
   </div>
 
   <div class="card">
@@ -310,6 +316,8 @@
     document.getElementById('nosupport').hidden = false;
     document.getElementById('dfu').disabled = true;
     document.getElementById('dfuall').hidden = true;
+    document.getElementById('chk').disabled = true;
+    document.getElementById('chkall').hidden = true;
   }
 
   // Bootloader-inngang: åpne porten med 1200 baud og slipp DTR.
@@ -342,6 +350,118 @@
 
   document.getElementById('dfu').addEventListener('click', () => enterDfu(USB_FILTERS));
   document.getElementById('dfuall').addEventListener('click', () => enterDfu(null));
+
+  // ── Versjonssjekk ──
+  // Meshtastic serieprotokoll (src/mesh/StreamAPI.cpp): 0x94 0xC3, 16 bit lengde (big endian), protobuf.
+  // Vi sender ToRadio{want_config_id} og leser FromRadio.metadata (felt 13) → DeviceMetadata
+  // firmware_version (felt 1) og hw_model (felt 9). Feltnumre fra mesh.pb.h i 2.7.26.
+  const HW_T1000E = 71;
+  const chkEl = document.getElementById('chkstatus');
+  function setChk(cls, text) { chkEl.className = 'status ' + cls; chkEl.textContent = text; }
+
+  function frame(payload) {
+    const f = new Uint8Array(4 + payload.length);
+    f[0] = 0x94; f[1] = 0xC3; f[2] = payload.length >> 8; f[3] = payload.length & 0xFF;
+    f.set(payload, 4);
+    return f;
+  }
+  function varint(n) {
+    const out = [];
+    while (n > 0x7F) { out.push((n & 0x7F) | 0x80); n = Math.floor(n / 128); }
+    out.push(n);
+    return out;
+  }
+  // Går gjennom protobuf-felt: kaller cb(feltnr, wiretype, verdi). verdi er tall (varint) eller Uint8Array.
+  function pbFields(buf, cb) {
+    let i = 0;
+    const rv = () => { let r = 0, m = 1, b; do { b = buf[i++]; r += (b & 0x7F) * m; m *= 128; } while (b & 0x80 && i < buf.length); return r; };
+    while (i < buf.length) {
+      const key = rv(), fn = Math.floor(key / 8), wt = key & 7;
+      if (wt === 0) cb(fn, wt, rv());
+      else if (wt === 2) { const l = rv(); cb(fn, wt, buf.subarray(i, i + l)); i += l; }
+      else if (wt === 5) i += 4;
+      else if (wt === 1) i += 8;
+      else return;
+    }
+  }
+
+  async function checkVersion(filters) {
+    let port;
+    try {
+      port = await navigator.serial.requestPort(filters ? { filters } : {});
+    } catch (e) {
+      if (e.name === 'NotFoundError') setChk('info', 'Ingen port valgt. Sjekk at noden er på og kablet, og prøv igjen.');
+      else setChk('err', 'Kunne ikke velge port: ' + e.message);
+      return;
+    }
+    try {
+      await port.open({ baudRate: 115200 });
+    } catch (e) {
+      setChk('err', 'Kunne ikke åpne porten. Er Meshtastic-appen, CLI eller et annet program koblet til noden? Lukk det og prøv igjen. (' + e.message + ')');
+      return;
+    }
+    setChk('info', 'Leser fra noden ...');
+    const reader = port.readable.getReader();
+    const writer = port.writable.getWriter();
+    let result = null;
+    const timer = setTimeout(() => { try { reader.cancel(); } catch (e) {} }, 10000);
+    try {
+      // Vekk-sekvens som Python-klienten bruker, deretter ToRadio{want_config_id = 69420} (bare config).
+      await writer.write(new Uint8Array(32).fill(0xC3));
+      await sleep(100);
+      await writer.write(frame(new Uint8Array([0x18, ...varint(69420)])));
+
+      let buf = new Uint8Array(0);
+      while (!result) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const nb = new Uint8Array(buf.length + value.length); nb.set(buf); nb.set(value, buf.length); buf = nb;
+        // Plukk ut hele rammer, hopp over løs loggtekst.
+        let p = 0;
+        while (p + 4 <= buf.length) {
+          if (buf[p] !== 0x94 || buf[p + 1] !== 0xC3) { p++; continue; }
+          const len = (buf[p + 2] << 8) | buf[p + 3];
+          if (len > 512) { p++; continue; }
+          if (p + 4 + len > buf.length) break;
+          pbFields(buf.subarray(p + 4, p + 4 + len), (fn, wt, v) => {
+            if (fn === 13 && wt === 2) {
+              const md = { fw: null, hw: null };
+              pbFields(v, (f2, w2, v2) => {
+                if (f2 === 1 && w2 === 2) md.fw = new TextDecoder().decode(v2);
+                if (f2 === 9 && w2 === 0) md.hw = v2;
+              });
+              if (md.fw) result = md;
+            }
+          });
+          p += 4 + len;
+        }
+        buf = buf.slice(p);
+      }
+    } catch (e) {
+      // lesing avbrutt (tidsavbrudd eller frakobling)
+    }
+    clearTimeout(timer);
+    try { await writer.write(frame(new Uint8Array([0x20, 0x01]))); } catch (e) {} // ToRadio{disconnect}
+    try { reader.releaseLock(); } catch (e) {}
+    try { writer.releaseLock(); } catch (e) {}
+    try { await port.close(); } catch (e) {}
+
+    if (!result) {
+      setChk('err', 'Fikk ikke svar fra noden innen 10 sekunder. Vent til den har startet helt, og prøv igjen. Er noden fortsatt i oppdateringsmodus (disken T1000-E vises), er ikke filen kopiert ennå.');
+      return;
+    }
+    const hwTxt = result.hw === HW_T1000E ? 'T1000-E' : 'hw-modell ' + result.hw;
+    if (result.hw !== null && result.hw !== HW_T1000E) {
+      setChk('err', 'Dette er ikke en T1000-E (' + hwTxt + ', firmware ' + result.fw + '). Ikke bruk filen fra denne siden på den.');
+    } else if (result.fw === FW_VERSION) {
+      setChk('ok', 'Riktig. Noden (' + hwTxt + ') kjører ' + result.fw + '. Oppdateringen er ferdig.');
+    } else {
+      setChk('err', 'Noden (' + hwTxt + ') kjører ' + result.fw + ', ikke ' + FW_VERSION + '. Gjenta fra steg 3.');
+    }
+  }
+
+  document.getElementById('chk').addEventListener('click', () => checkVersion(USB_FILTERS));
+  document.getElementById('chkall').addEventListener('click', () => checkVersion(null));
 </script>
 
 </body>
