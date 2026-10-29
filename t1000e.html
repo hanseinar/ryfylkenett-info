@@ -250,6 +250,7 @@
     <button class="linkbtn" id="dfuall">Finner du ikke noden i listen? Vis alle porter</button>
     <div class="status" id="dfustatus"></div>
     <p style="margin-top:0.9rem;"><b>Uten knappen:</b> Hold knappen på T1000-E inne mens du slår den på, og fortsett å holde i ca. 3 sekunder. Disken skal da dukke opp.</p>
+    <p style="margin-top:0.9rem;"><b>Står det grønne lyset fast?</b> Da er noden i oppdateringsmodus. Dukker ikke disken T1000-E opp innen et minutt, ta kontakt med oss (se nederst). En tidligere versjon av knappen over kunne sette noden i en modus uten disk. Noden er ikke ødelagt, men må oppdateres på en annen måte.</p>
   </div>
 
   <div class="card">
@@ -319,37 +320,6 @@
     document.getElementById('chk').disabled = true;
     document.getElementById('chkall').hidden = true;
   }
-
-  // Bootloader-inngang: åpne porten med 1200 baud og slipp DTR.
-  // Adafruit nRF52-kjernen som Meshtastic bruker, starter da UF2-bootloaderen.
-  async function enterDfu(filters) {
-    let port;
-    try {
-      port = await navigator.serial.requestPort(filters ? { filters } : {});
-    } catch (e) {
-      if (e.name === 'NotFoundError') {
-        setStatus('info', 'Ingen port valgt. Sjekk at kabelen overfører data og at noden er på, og prøv igjen.');
-      } else {
-        setStatus('err', 'Kunne ikke velge port: ' + e.message);
-      }
-      return;
-    }
-    try {
-      setStatus('info', 'Kobler til ...');
-      await port.open({ baudRate: 1200 });
-      await port.setSignals({ dataTerminalReady: true });
-      await sleep(100);
-      await port.setSignals({ dataTerminalReady: false });
-      await sleep(200);
-    } catch (e) {
-      // Noden kan koble fra seg selv midt i dette. Det er forventet.
-    }
-    try { await port.close(); } catch (e) { /* allerede frakoblet */ }
-    setStatus('ok', 'Sendt. Vent 5–10 sekunder. Dukker disken T1000-E opp, gå videre til steg 4. Hvis ikke, bruk knappen på noden som beskrevet under.');
-  }
-
-  document.getElementById('dfu').addEventListener('click', () => enterDfu(USB_FILTERS));
-  document.getElementById('dfuall').addEventListener('click', () => enterDfu(null));
 
   // ── Versjonssjekk ──
   // Meshtastic serieprotokoll (src/mesh/StreamAPI.cpp): 0x94 0xC3, 16 bit lengde (big endian), protobuf.
@@ -462,6 +432,91 @@
 
   document.getElementById('chk').addEventListener('click', () => checkVersion(USB_FILTERS));
   document.getElementById('chkall').addEventListener('click', () => checkVersion(null));
+
+  // ── Oppdateringsmodus ──
+  // Sender samme admin-melding som `meshtastic --enter-dfu`: AdminMessage{enter_dfu_mode_request = true} (felt 21)
+  // til noden selv. Firmware kaller da enterUf2Dfu(), og bootloaderen starter med disk (UF2).
+  // Den gamle metoden (åpne porten med 1200 baud) startet bootloaderen uten disk og må ikke brukes.
+  // Feltnumre fra protobufs i 2.7.26: ToRadio.packet=1, want_config_id=3; FromRadio.my_info=3, config_complete_id=7;
+  // MyNodeInfo.my_node_num=1; MeshPacket.to=2 (fixed32), decoded=4, id=6 (fixed32), want_ack=10; Data.portnum=1,
+  // payload=2, want_response=3; PortNum.ADMIN_APP=6.
+  function le32(n) { return [n & 0xFF, (n >>> 8) & 0xFF, (n >>> 16) & 0xFF, (n >>> 24) & 0xFF]; }
+  function lenField(key, bytes) { return [key, ...varint(bytes.length), ...bytes]; }
+
+  function dfuToRadio(myNodeNum) {
+    const admin = [0xA8, 0x01, 0x01];                                     // enter_dfu_mode_request = true
+    const data = [0x08, 0x06, ...lenField(0x12, admin), 0x18, 0x01];      // portnum ADMIN_APP, payload, want_response
+    const id = (crypto.getRandomValues(new Uint32Array(1))[0] | 1) >>> 0;
+    const packet = [0x15, ...le32(myNodeNum), ...lenField(0x22, data), 0x35, ...le32(id), 0x50, 0x01];
+    return new Uint8Array(lenField(0x0A, packet));                        // ToRadio.packet
+  }
+
+  async function enterDfu(filters) {
+    let port;
+    try {
+      port = await navigator.serial.requestPort(filters ? { filters } : {});
+    } catch (e) {
+      if (e.name === 'NotFoundError') setStatus('info', 'Ingen port valgt. Sjekk at kabelen overfører data og at noden er på, og prøv igjen.');
+      else setStatus('err', 'Kunne ikke velge port: ' + e.message);
+      return;
+    }
+    try {
+      await port.open({ baudRate: 115200 });
+    } catch (e) {
+      setStatus('err', 'Kunne ikke åpne porten. Er Meshtastic-appen, CLI eller et annet program koblet til noden? Lukk det og prøv igjen. (' + e.message + ')');
+      return;
+    }
+    setStatus('info', 'Kobler til noden ...');
+    const reader = port.readable.getReader();
+    const writer = port.writable.getWriter();
+    const nonce = 69420;
+    let myNodeNum = null, configDone = false, sent = false;
+    const timer = setTimeout(() => { try { reader.cancel(); } catch (e) {} }, 10000);
+    try {
+      await writer.write(new Uint8Array(32).fill(0xC3));
+      await sleep(100);
+      await writer.write(frame(new Uint8Array([0x18, ...varint(nonce)])));
+      let buf = new Uint8Array(0);
+      while (!configDone) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        const nb = new Uint8Array(buf.length + value.length); nb.set(buf); nb.set(value, buf.length); buf = nb;
+        let p = 0;
+        while (p + 4 <= buf.length) {
+          if (buf[p] !== 0x94 || buf[p + 1] !== 0xC3) { p++; continue; }
+          const len = (buf[p + 2] << 8) | buf[p + 3];
+          if (len > 512) { p++; continue; }
+          if (p + 4 + len > buf.length) break;
+          pbFields(buf.subarray(p + 4, p + 4 + len), (fn, wt, v) => {
+            if (fn === 3 && wt === 2) pbFields(v, (f2, w2, v2) => { if (f2 === 1 && w2 === 0) myNodeNum = v2; });
+            if (fn === 7 && wt === 0 && v === nonce) configDone = true;
+          });
+          p += 4 + len;
+        }
+        buf = buf.slice(p);
+      }
+      if (myNodeNum !== null) {
+        await writer.write(frame(dfuToRadio(myNodeNum)));
+        sent = true;
+        await sleep(1500);  // la noden lese meldingen før porten lukkes
+      }
+    } catch (e) {
+      // Noden kobler fra seg selv når den går i oppdateringsmodus. Det er forventet.
+    }
+    clearTimeout(timer);
+    try { reader.releaseLock(); } catch (e) {}
+    try { writer.releaseLock(); } catch (e) {}
+    try { await port.close(); } catch (e) {}
+
+    if (sent) {
+      setStatus('ok', 'Sendt. Vent 5–10 sekunder. Når disken T1000-E dukker opp, gå videre til steg 4. Hvis ikke, bruk knappen på noden som beskrevet under.');
+    } else {
+      setStatus('err', 'Fikk ikke kontakt med Meshtastic på noden innen 10 sekunder. Vent til den har startet helt, og prøv igjen. Står det grønne lyset fast uten at disken vises, se «Står det grønne lyset fast?» under.');
+    }
+  }
+
+  document.getElementById('dfu').addEventListener('click', () => enterDfu(USB_FILTERS));
+  document.getElementById('dfuall').addEventListener('click', () => enterDfu(null));
 </script>
 
 </body>
