@@ -242,14 +242,16 @@
 
   <div class="card">
     <h2><span class="step">3</span>Sett i oppdateringsmodus</h2>
-    <p>Trykk knappen og velg porten til T1000-E i listen som dukker opp. Etter noen sekunder skal en ny disk med navnet <b>T1000-E</b> vises i Utforsker (Windows) eller Finder (Mac).</p>
+    <p>Hold knappen på T1000-E inne mens du kobler til USB-kabelen, og fortsett å holde i ca. 3 sekunder. Etter noen sekunder skal en ny disk med navnet <b>T1000-E</b> vises i Utforsker (Windows) eller Finder (Mac).</p>
+    <!-- Knappen er slått av til den er testet på en ekte T1000-E (se commit-historikk) -->
+    <div hidden>
     <button class="btn" id="dfu">
       <svg viewBox="0 0 24 24"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>
       Sett i oppdateringsmodus
     </button>
     <button class="linkbtn" id="dfuall">Finner du ikke noden i listen? Vis alle porter</button>
     <div class="status" id="dfustatus"></div>
-    <p style="margin-top:0.9rem;"><b>Uten knappen:</b> Hold knappen på T1000-E inne mens du slår den på, og fortsett å holde i ca. 3 sekunder. Disken skal da dukke opp.</p>
+    </div>
     <p style="margin-top:0.9rem;"><b>Står det grønne lyset fast?</b> Da er noden i oppdateringsmodus. Dukker ikke disken T1000-E opp innen et minutt, ta kontakt med oss (se nederst). En tidligere versjon av knappen over kunne sette noden i en modus uten disk. Noden er ikke ødelagt, men må oppdateres på en annen måte.</p>
   </div>
 
